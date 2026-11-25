@@ -69,7 +69,7 @@ jobs:
             python3 python3-pefile python3-mako python3-yaml xxd openssl patch git rsync p7zip-full \
             curl xz-utils unzip libc6-dev lsb-release wget software-properties-common gnupg \
             autoconf automake libtool pkg-config liblzma-dev zlib1g-dev libssl-dev libsqlite3-dev \
-            glslang-tools spirv-tools libdrm-dev libexpat1-dev
+            libcurl4-openssl-dev glslang-tools spirv-tools libdrm-dev libexpat1-dev
           wget -qO /tmp/llvm.sh https://apt.llvm.org/llvm.sh
           chmod +x /tmp/llvm.sh
           sudo /tmp/llvm.sh 22
