@@ -205,13 +205,20 @@ jobs:
           set -euo pipefail
           SDK_DIR=$(find /tmp/darwin-sdk -maxdepth 2 -name "Developer" -exec dirname {} \; | head -n1)
           echo "Using DARWIN_SDK=$SDK_DIR"
+          echo 'int main(void){return 0;}' > /tmp/t.c
+          clang --target=aarch64-apple-darwin -isysroot "$SDK_DIR/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk" -fuse-ld=lld /tmp/t.c -o /tmp/t
+          rm -f /tmp/t.c /tmp/t
           ./pp setup --llvm-mingw /tmp/llvm-mingw --darwin-sdk "$SDK_DIR" || true
           JOBS=$(nproc) ./pp build --variant release --unsigned
 
       - name: Dump stage logs on failure
         if: failure()
         run: |
-          for f in .work/run/logs/*.log .work/run/unix/configure.log .work/run/unix/wine/build-macos/config.log; do
+          if [ -f .work/run/unix/wine/build-macos/config.log ]; then
+            echo "=== build-macos/config.log (compiler check) ==="
+            grep -A 30 "checking whether the C compiler works" .work/run/unix/wine/build-macos/config.log || true
+          fi
+          for f in .work/run/logs/*.log; do
             [ -f "$f" ] || continue
             echo "=== $f (last 60 lines) ==="
             tail -n 60 "$f" || true
