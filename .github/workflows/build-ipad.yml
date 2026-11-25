@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Manual workflow for building an unsigned release IPA in a personal fork.
-# Requires repository secret DARWIN_SDK_URL pointing to a .tar.gz / .tar.xz / .zip
-# archive of the slim xtool Darwin SDK bundle (iPhoneOS26.5.sdk + MacOSX26.5.sdk).
+# Automatically prepares the Darwin SDK from GitHub's macOS runner (no PC needed),
+# or downloads it from secrets.DARWIN_SDK_URL if provided.
 name: Build iPad IPA
 
 on:
@@ -11,19 +11,47 @@ permissions:
   contents: read
 
 jobs:
+  prepare-sdk:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    outputs:
+      from-secret: ${{ secrets.DARWIN_SDK_URL != '' }}
+    steps:
+      - name: Package Darwin SDK from preinstalled Xcode
+        if: ${{ secrets.DARWIN_SDK_URL == '' }}
+        run: |
+          set -euo pipefail
+          DEV_DIR=$(ls -d /Applications/Xcode*.app/Contents/Developer | sort -V | tail -n1)
+          echo "Using Xcode developer dir: $DEV_DIR"
+          OUT=/tmp/darwin-sdk/Developer
+          mkdir -p "$OUT/Platforms/iPhoneOS.platform/Developer/SDKs"
+          mkdir -p "$OUT/Platforms/MacOSX.platform/Developer/SDKs"
+          mkdir -p "$OUT/Toolchains/XcodeDefault.xctoolchain/usr/lib"
+
+          IOS_SDK=$(ls -d "$DEV_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS"*.sdk | sort -V | tail -n1)
+          MAC_SDK=$(ls -d "$DEV_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX"*.sdk | sort -V | tail -n1)
+          echo "iOS SDK: $IOS_SDK"
+          echo "macOS SDK: $MAC_SDK"
+
+          cp -a "$IOS_SDK" "$OUT/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk"
+          cp -a "$MAC_SDK" "$OUT/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk"
+          cp -a "$DEV_DIR/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang" "$OUT/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang"
+
+          tar -C /tmp/darwin-sdk -czf /tmp/darwin-sdk.tar.gz Developer
+
+      - name: Upload temporary Darwin SDK artifact
+        if: ${{ secrets.DARWIN_SDK_URL == '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: darwin-sdk-bundle
+          path: /tmp/darwin-sdk.tar.gz
+          retention-days: 1
+
   build-ipa:
+    needs: prepare-sdk
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
-      - name: Check DARWIN_SDK_URL secret
-        env:
-          DARWIN_SDK_URL: ${{ secrets.DARWIN_SDK_URL }}
-        run: |
-          if [ -z "$DARWIN_SDK_URL" ]; then
-            echo "::error::Secret DARWIN_SDK_URL is not set. Create a slim Darwin SDK bundle with 'xtool sdk install <Xcode_26.6.xip> --slim', archive it, and set DARWIN_SDK_URL in repository Secrets."
-            exit 1
-          fi
-
       - uses: actions/checkout@v4
 
       - name: Install host build dependencies
@@ -75,7 +103,22 @@ jobs:
             cp -f "$BUILTIN" "$CRT_LIB/$f"
           done
 
-      - name: Download and extract Darwin SDK
+      - name: Download Darwin SDK from artifact
+        if: ${{ needs.prepare-sdk.outputs.from-secret != 'true' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: darwin-sdk-bundle
+          path: /tmp/darwin-sdk-archive
+
+      - name: Extract Darwin SDK from artifact
+        if: ${{ needs.prepare-sdk.outputs.from-secret != 'true' }}
+        run: |
+          mkdir -p /tmp/darwin-sdk
+          tar -xzf /tmp/darwin-sdk-archive/darwin-sdk.tar.gz -C /tmp/darwin-sdk
+          rm -rf /tmp/darwin-sdk-archive
+
+      - name: Download Darwin SDK from secret URL
+        if: ${{ needs.prepare-sdk.outputs.from-secret == 'true' }}
         env:
           DARWIN_SDK_URL: ${{ secrets.DARWIN_SDK_URL }}
         run: |
@@ -91,7 +134,7 @@ jobs:
       - name: Setup and build unsigned release IPA
         run: |
           set -euo pipefail
-          SDK_DIR=$(find /tmp/darwin-sdk -maxdepth 2 -name "iPhoneOS*.sdk" -exec dirname {} \; | head -n1)
+          SDK_DIR=$(find /tmp/darwin-sdk -maxdepth 2 -name "Developer" -exec dirname {} \; | head -n1)
           echo "Using DARWIN_SDK=$SDK_DIR"
           ./pp setup --llvm-mingw /tmp/llvm-mingw --darwin-sdk "$SDK_DIR"
           JOBS=$(nproc) ./pp build --variant release --unsigned
