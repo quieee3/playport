@@ -34,14 +34,14 @@ jobs:
           mkdir -p "$OUT/Platforms/MacOSX.platform/Developer/SDKs"
           mkdir -p "$OUT/Toolchains/XcodeDefault.xctoolchain/usr/lib"
 
-          IOS_SDK=$(ls -d "$DEV_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS"*.sdk | sort -V | tail -n1)
-          MAC_SDK=$(ls -d "$DEV_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX"*.sdk | sort -V | tail -n1)
+          IOS_SDK=$(realpath "$(ls -d "$DEV_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS"*.sdk | sort -V | tail -n1)")
+          MAC_SDK=$(realpath "$(ls -d "$DEV_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX"*.sdk | sort -V | tail -n1)")
           echo "iOS SDK: $IOS_SDK"
           echo "macOS SDK: $MAC_SDK"
 
-          cp -RL "$IOS_SDK" "$OUT/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk"
-          cp -RL "$MAC_SDK" "$OUT/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk"
-          cp -RL "$DEV_DIR/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang" "$OUT/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang"
+          cp -a "$IOS_SDK" "$OUT/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk"
+          cp -a "$MAC_SDK" "$OUT/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk"
+          cp -a "$DEV_DIR/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang" "$OUT/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang"
 
           tar -C /tmp/darwin-sdk -czf /tmp/darwin-sdk.tar.gz Developer
 
