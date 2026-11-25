@@ -206,6 +206,16 @@ jobs:
           set -euo pipefail
           SDK_DIR=$(find /tmp/darwin-sdk -maxdepth 2 -name "Developer" -exec dirname {} \; | head -n1)
           echo "Using DARWIN_SDK=$SDK_DIR"
+          # Put our LLVM 22 clang + lld-21 ld64.lld ahead of setup-swift's bundled clang/lld on PATH.
+          mkdir -p /tmp/llvm-bin
+          for tool in clang clang++ lld llvm-ar llvm-ranlib llvm-nm llvm-objdump llvm-objcopy llvm-lipo llvm-strip llvm-readobj llvm-libtool-darwin; do
+            if [ -x "/usr/bin/${tool}-22" ]; then
+              ln -sf "/usr/bin/${tool}-22" "/tmp/llvm-bin/${tool}"
+            fi
+          done
+          ln -sf /usr/lib/llvm-21/bin/ld64.lld /tmp/llvm-bin/ld64.lld
+          export PATH="/tmp/llvm-bin:$PATH"
+          which clang ld64.lld swift
           echo 'int main(void){return 0;}' > /tmp/t.c
           clang --target=aarch64-apple-darwin -isysroot "$SDK_DIR/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk" -fuse-ld=lld /tmp/t.c -o /tmp/t
           rm -f /tmp/t.c /tmp/t
