@@ -65,11 +65,13 @@ jobs:
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            gcc g++ make bison flex gettext cmake ninja-build meson \
-            python3 python3-pefile python3-mako python3-yaml xxd openssl patch git rsync p7zip-full \
+            gcc g++ make bison flex gettext cmake ninja-build \
+            python3 python3-pip python3-pefile python3-mako python3-yaml xxd openssl patch git rsync p7zip-full \
             curl xz-utils unzip libc6-dev lsb-release wget software-properties-common gnupg \
             autoconf automake libtool pkg-config liblzma-dev zlib1g-dev libssl-dev libsqlite3-dev \
             libcurl4-openssl-dev glslang-tools spirv-tools libdrm-dev libexpat1-dev
+          sudo pip3 install --break-system-packages "meson>=1.4.0"
+          meson --version
           wget -qO /tmp/llvm.sh https://apt.llvm.org/llvm.sh
           chmod +x /tmp/llvm.sh
           sudo /tmp/llvm.sh 22
@@ -158,8 +160,9 @@ jobs:
             cp -f "$BUILTIN" "$CRT_LIB/$f"
           done
 
-      - name: Cache .work/inputs and .work/cache
-        uses: actions/cache@v4
+      - name: Restore .work/inputs and .work/cache
+        id: cache-work
+        uses: actions/cache/restore@v4
         with:
           path: |
             .work/inputs
@@ -234,6 +237,15 @@ jobs:
             echo "=== $f (last 60 lines) ==="
             tail -n 60 "$f" || true
           done
+
+      - name: Save .work/inputs and .work/cache
+        if: always() && steps.cache-work.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .work/inputs
+            .work/cache
+          key: playport-inputs-cache-${{ hashFiles('pins.lock', 'build/toolchain/**') }}
 
       - name: Upload unsigned IPA
         uses: actions/upload-artifact@v4
