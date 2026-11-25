@@ -74,8 +74,9 @@ jobs:
           chmod +x /tmp/llvm.sh
           sudo /tmp/llvm.sh 22
           sudo apt-get install -y --no-install-recommends \
-            lld-22 llvm-22 clang-22 llvm-22-dev libclang-22-dev libclc-22-dev libllvmspirvlib-22-dev
-          sudo apt-get install -y --no-install-recommends llvm-spirv-22 || true
+            lld-22 llvm-22 clang-22 llvm-22-dev libclang-22-dev
+          sudo apt-get install -y --no-install-recommends libclc-22-dev || true
+          sudo apt-get install -y --no-install-recommends libllvmspirvlib-22-dev llvm-spirv-22 || true
           for tool in clang clang++ ld64.lld lld llvm-ar llvm-ranlib llvm-nm llvm-objdump llvm-objcopy llvm-lipo llvm-strip llvm-readobj; do
             if [ -x "/usr/bin/${tool}-22" ]; then
               sudo ln -sf "/usr/bin/${tool}-22" "/usr/local/bin/${tool}"
