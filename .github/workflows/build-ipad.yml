@@ -65,16 +65,18 @@ jobs:
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            gcc make bison flex gettext cmake ninja-build meson \
-            python3 python3-pefile xxd openssl patch git rsync p7zip-full \
+            gcc g++ make bison flex gettext cmake ninja-build meson \
+            python3 python3-pefile python3-mako python3-yaml xxd openssl patch git rsync p7zip-full \
             curl xz-utils unzip libc6-dev lsb-release wget software-properties-common gnupg \
-            liblzma-dev zlib1g-dev pkg-config libssl-dev libsqlite3-dev \
-            libimobiledevice-dev libplist-dev libusbmuxd-dev
+            autoconf automake libtool pkg-config liblzma-dev zlib1g-dev libssl-dev libsqlite3-dev \
+            glslang-tools spirv-tools libdrm-dev libexpat1-dev
           wget -qO /tmp/llvm.sh https://apt.llvm.org/llvm.sh
           chmod +x /tmp/llvm.sh
           sudo /tmp/llvm.sh 22
-          sudo apt-get install -y --no-install-recommends lld-22 llvm-22 clang-22
-          for tool in clang clang++ ld64.lld lld llvm-ar llvm-nm llvm-objdump llvm-objcopy llvm-lipo; do
+          sudo apt-get install -y --no-install-recommends \
+            lld-22 llvm-22 clang-22 llvm-22-dev libclang-22-dev libclc-22-dev libllvmspirvlib-22-dev
+          sudo apt-get install -y --no-install-recommends llvm-spirv-22 || true
+          for tool in clang clang++ ld64.lld lld llvm-ar llvm-ranlib llvm-nm llvm-objdump llvm-objcopy llvm-lipo llvm-strip llvm-readobj; do
             if [ -x "/usr/bin/${tool}-22" ]; then
               sudo ln -sf "/usr/bin/${tool}-22" "/usr/local/bin/${tool}"
             fi
@@ -86,6 +88,33 @@ jobs:
         uses: swift-actions/setup-swift@v2
         with:
           swift-version: "6.2"
+
+      - name: Cache libimobiledevice (1.4+ for xtool)
+        id: cache-imobile
+        uses: actions/cache@v4
+        with:
+          path: /opt/libimobiledevice
+          key: libimobiledevice-master-v1
+
+      - name: Build libimobiledevice stack for xtool
+        if: steps.cache-imobile.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          sudo mkdir -p /opt/libimobiledevice
+          sudo chown "$(id -u):$(id -g)" /opt/libimobiledevice
+          export PKG_CONFIG_PATH="/opt/libimobiledevice/lib/pkgconfig"
+          export LD_LIBRARY_PATH="/opt/libimobiledevice/lib"
+          mkdir -p /tmp/imobile && cd /tmp/imobile
+          for repo in libplist libimobiledevice-glue libtatsu libusbmuxd libimobiledevice; do
+            git clone --depth 1 "https://github.com/libimobiledevice/${repo}.git"
+            (
+              cd "$repo"
+              ./autogen.sh --prefix=/opt/libimobiledevice --without-cython
+              make -j"$(nproc)"
+              make install
+            )
+          done
+          rm -rf /tmp/imobile
 
       - name: Cache llvm-mingw (with arm64ec CRT)
         id: cache-mingw
@@ -162,6 +191,11 @@ jobs:
           rm -f /tmp/darwin-sdk-archive
 
       - name: Setup and build unsigned release IPA
+        env:
+          PKG_CONFIG_PATH: /opt/libimobiledevice/lib/pkgconfig
+          LD_LIBRARY_PATH: /opt/libimobiledevice/lib
+          CPATH: /opt/libimobiledevice/include
+          LIBRARY_PATH: /opt/libimobiledevice/lib
         run: |
           set -euo pipefail
           SDK_DIR=$(find /tmp/darwin-sdk -maxdepth 2 -name "Developer" -exec dirname {} \; | head -n1)
