@@ -371,7 +371,7 @@ public struct LaunchSettings: Codable, Equatable, Sendable {
 
     /// The resolutions the pickers offer, the same in every aspect ratio, as screen specs;
     /// the phone keeps those it can show.
-    public static let screenPresets = ["native", "1080", "900", "720", "540"]
+    public static let screenPresets = ["native", "1080", "900", "720", "600", "540"]
 
     /// The limits the pickers offer for a panel refreshing at most `maxRate` times a
     /// second: the rates that divide it evenly, so each frame stays up equally long.

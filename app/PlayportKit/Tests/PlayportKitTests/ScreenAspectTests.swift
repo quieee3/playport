@@ -5,7 +5,7 @@ import XCTest
 
 final class ScreenAspectTests: XCTestCase {
     func testEveryShapeOffersTheSameResolutions() {
-        XCTAssertEqual(LaunchSettings.screenPresets, ["native", "1080", "900", "720", "540"])
+        XCTAssertEqual(LaunchSettings.screenPresets, ["native", "1080", "900", "720", "600", "540"])
         XCTAssertEqual(ScreenAspect.allCases.map(\.rawValue), ["phone", "16:9", "16:10", "4:3"])
         XCTAssertTrue(LaunchSettings.screenPresets.allSatisfy(LaunchPlan.validScreen))
     }

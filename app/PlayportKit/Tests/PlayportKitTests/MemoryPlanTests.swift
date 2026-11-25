@@ -22,7 +22,7 @@ final class MemoryPlanTests: XCTestCase {
             (16 * 1024, 8192, 12, 8192, 4096, 2304),  // more than 12 GB: the 12 GB row
             (7679, 6144, 8, 6144, 1024, 2048),
             (7679, 6046, 8, 6144, 1024, 2048),  // 8 GB at the public figure: the owner's row in full
-            (5734, 3064, 6, 3072, 0, 1024),   // 6 GB unentitled (public figure): L within the slack
+            (5734, 4096, 6, 4096, 0, 1536),   // 6 GB entitled: 4 GiB guest RAM, 1.5 GiB VRAM
             (3662, 2090, 4, 2048, 0, 768),    // 4 GB unentitled
         ]
         for (ram, limit, gb, guest, pool, video) in table {

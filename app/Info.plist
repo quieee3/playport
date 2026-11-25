@@ -26,6 +26,14 @@
 	<string>Playport</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Support both iPhone (1) and iPad (2) natively, full-screen landscape. -->
+	<key>UIDeviceFamily</key>
+	<array>
+		<integer>1</integer>
+		<integer>2</integer>
+	</array>
+	<key>UIRequiresFullScreen</key>
+	<true/>
 	<!-- The app delegate narrows these per launch: landscape for a title, portrait otherwise. -->
 	<key>UISupportedInterfaceOrientations</key>
 	<array>

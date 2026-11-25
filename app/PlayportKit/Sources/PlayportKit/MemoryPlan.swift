@@ -48,7 +48,7 @@ public struct MemoryPlan: Equatable, Sendable {
         public static let table: [Tier] = [
             Tier(ramGB: 12, fromMB: 10 * 1024, guestRAMMB: 8192, poolMB: 4096, videoMB: 2304),
             Tier(ramGB: 8, fromMB: 7 * 1024, guestRAMMB: 6144, poolMB: 1024, videoMB: 2048),
-            Tier(ramGB: 6, fromMB: 5 * 1024, guestRAMMB: 3072, poolMB: 0, videoMB: 1024),
+            Tier(ramGB: 6, fromMB: 5 * 1024, guestRAMMB: 4096, poolMB: 0, videoMB: 1536),
             Tier(ramGB: 4, fromMB: 0, guestRAMMB: 2048, poolMB: 0, videoMB: 768),
         ]
 
