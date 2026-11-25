@@ -82,7 +82,11 @@ jobs:
               sudo ln -sf "/usr/bin/${tool}-22" "/usr/bin/${tool}"
             fi
           done
+          if [ ! -e /usr/bin/ld64.lld ] && [ -x /usr/bin/lld-22 ]; then
+            sudo ln -sf /usr/bin/lld-22 /usr/bin/ld64.lld
+          fi
           clang --version
+          ld64.lld --version || true
           llvm-lipo --version || true
 
       - name: Setup Swift
@@ -207,7 +211,7 @@ jobs:
       - name: Dump stage logs on failure
         if: failure()
         run: |
-          for f in .work/run/logs/*.log; do
+          for f in .work/run/logs/*.log .work/run/unix/configure.log .work/run/unix/wine/build-macos/config.log; do
             [ -f "$f" ] || continue
             echo "=== $f (last 60 lines) ==="
             tail -n 60 "$f" || true
