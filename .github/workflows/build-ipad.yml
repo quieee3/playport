@@ -60,18 +60,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install host build dependencies
+      - name: Install host build dependencies and LLVM 22
         run: |
+          set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            clang lld llvm gcc make bison flex gettext cmake ninja-build meson \
+            gcc make bison flex gettext cmake ninja-build meson \
             python3 python3-pefile xxd openssl patch git rsync p7zip-full \
-            curl xz-utils unzip libc6-dev
+            curl xz-utils unzip libc6-dev lsb-release wget software-properties-common gnupg
+          wget -qO /tmp/llvm.sh https://apt.llvm.org/llvm.sh
+          chmod +x /tmp/llvm.sh
+          sudo /tmp/llvm.sh 22
+          sudo apt-get install -y --no-install-recommends lld-22 llvm-22 clang-22
+          for tool in clang clang++ ld64.lld lld llvm-ar llvm-nm llvm-objdump llvm-objcopy llvm-lipo; do
+            if [ -x "/usr/bin/${tool}-22" ]; then
+              sudo ln -sf "/usr/bin/${tool}-22" "/usr/local/bin/${tool}"
+            fi
+          done
+          clang --version
+          llvm-lipo --version || true
 
-      - name: Setup Swift 6
+      - name: Setup Swift
         uses: swift-actions/setup-swift@v2
         with:
-          swift-version: "6.0"
+          swift-version: "6.2"
 
       - name: Cache llvm-mingw (with arm64ec CRT)
         id: cache-mingw
@@ -109,6 +121,16 @@ jobs:
             cp -f "$BUILTIN" "$CRT_LIB/$f"
           done
 
+      - name: Cache .work/inputs and .work/cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .work/inputs
+            .work/cache
+          key: playport-inputs-cache-${{ hashFiles('pins.lock', 'build/toolchain/**') }}
+          restore-keys: |
+            playport-inputs-cache-
+
       - name: Download Darwin SDK from artifact
         if: ${{ needs.prepare-sdk.outputs.from-secret != 'true' }}
         uses: actions/download-artifact@v4
@@ -144,6 +166,15 @@ jobs:
           echo "Using DARWIN_SDK=$SDK_DIR"
           ./pp setup --llvm-mingw /tmp/llvm-mingw --darwin-sdk "$SDK_DIR" || true
           JOBS=$(nproc) ./pp build --variant release --unsigned
+
+      - name: Dump stage logs on failure
+        if: failure()
+        run: |
+          for f in .work/run/logs/*.log; do
+            [ -f "$f" ] || continue
+            echo "=== $f (last 60 lines) ==="
+            tail -n 60 "$f" || true
+          done
 
       - name: Upload unsigned IPA
         uses: actions/upload-artifact@v4
