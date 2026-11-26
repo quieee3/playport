@@ -124,6 +124,30 @@ jobs:
           done
           rm -rf /tmp/imobile
 
+      - name: Cache SPIRV-LLVM-Translator (for Mesa KosmicKrisp)
+        id: cache-spirv
+        uses: actions/cache@v4
+        with:
+          path: /opt/llvmspirv
+          key: spirv-llvm-translator-22-v1
+
+      - name: Build SPIRV-LLVM-Translator for LLVM 22
+        if: steps.cache-spirv.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          sudo mkdir -p /opt/llvmspirv
+          sudo chown "$(id -u):$(id -g)" /opt/llvmspirv
+          git clone --depth 1 https://github.com/KhronosGroup/SPIRV-Headers /tmp/spirv-headers
+          git clone --depth 1 -b llvm_release_220 https://github.com/KhronosGroup/SPIRV-LLVM-Translator /tmp/spirv-translator
+          cmake -S /tmp/spirv-translator -B /tmp/spirv-build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/opt/llvmspirv \
+            -DLLVM_DIR=/usr/lib/llvm-22/lib/cmake/llvm \
+            -DLLVM_EXTERNAL_SPIRV_HEADERS_SOURCE_DIR=/tmp/spirv-headers \
+            -DLLVM_SPIRV_INCLUDE_TESTS=OFF
+          ninja -C /tmp/spirv-build -j"$(nproc)" install
+          rm -rf /tmp/spirv-headers /tmp/spirv-translator /tmp/spirv-build
+
       - name: Cache llvm-mingw (with arm64ec CRT)
         id: cache-mingw
         uses: actions/cache@v4
@@ -201,10 +225,11 @@ jobs:
 
       - name: Setup and build unsigned release IPA
         env:
-          PKG_CONFIG_PATH: /opt/libimobiledevice/lib/pkgconfig
-          LD_LIBRARY_PATH: /opt/libimobiledevice/lib
-          CPATH: /opt/libimobiledevice/include
-          LIBRARY_PATH: /opt/libimobiledevice/lib
+          PKG_CONFIG_PATH: /opt/libimobiledevice/lib/pkgconfig:/opt/llvmspirv/lib/pkgconfig
+          CMAKE_PREFIX_PATH: /opt/llvmspirv
+          LD_LIBRARY_PATH: /opt/libimobiledevice/lib:/opt/llvmspirv/lib
+          CPATH: /opt/libimobiledevice/include:/opt/llvmspirv/include
+          LIBRARY_PATH: /opt/libimobiledevice/lib:/opt/llvmspirv/lib
         run: |
           set -euo pipefail
           SDK_DIR=$(find /tmp/darwin-sdk -maxdepth 2 -name "Developer" -exec dirname {} \; | head -n1)
